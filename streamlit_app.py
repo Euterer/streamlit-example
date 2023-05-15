@@ -1,38 +1,61 @@
-from collections import namedtuple
-import altair as alt
-import math
+import os
 import pandas as pd
+import openpyxl
+import plotly.graph_objects as go
 import streamlit as st
 
-"""
-# Welcome to Streamlit!
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+st.set_page_config(layout='centered')
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+# Durchsuche Ordner und Unterordner nach .xlsx Datei
+current_dir = os.getcwd()
+file_path = None
+for root, dirs, files in os.walk(current_dir):
+    for file in files:
+        if file.endswith('.xlsx'):
+            file_path = os.path.join(root, file)
+            break
+    if file_path is not None:
+        break
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+if file_path is None:
+    st.write("Keine .xlsx-Datei im aktuellen Verzeichnis gefunden")
+else:
+    df = pd.read_excel(file_path)
+    # Rest des Codes...
 
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+df = df.fillna(1)
+df.iloc[0:, 1:] = df.iloc[0:, 1:].astype(int)
+categories = list(df.columns[1:])
 
-    points_per_turn = total_points / num_turns
+num_columns = df.shape[1]
+num_raws = df.shape[0]
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
+fig = go.Figure()
 
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+for i in range(0, num_raws):
+    r_values = df.iloc[i, 1:].tolist()
+    r_values.append(r_values[0])
+
+    fig.add_trace(go.Scatterpolar(
+        r=r_values,
+        theta=categories,
+        fill='toself',
+        name=df.iloc[i, 0]
+    ))
+
+fig.update_layout(
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[0, 6]
+        )
+    ),
+    showlegend=True,
+    width=1200,  # Anpassen der Breite
+    height=1000  # Anpassen der Höhe
+)
+
+st.plotly_chart(fig)
